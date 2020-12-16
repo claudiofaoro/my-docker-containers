@@ -1,0 +1,26 @@
+version: "3.3"
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.0.0-alpine
+    container_name: portainer
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.claudiofaoro.com`)"
+      - "traefik.http.routers.portainer.service=portainer"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      - "traefik.http.routers.portainer.tls.certresolver=lets-encrypt"
+    networks:
+      - web
+
+volumes:
+  portainer_data:
+
+networks:
+  web:
+    external: true
