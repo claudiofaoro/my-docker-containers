@@ -1,0 +1,58 @@
+version: '3.3'
+
+services:
+  db:
+    image: mariadb:10.5
+    container_name: mariadb-gitea
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=change_me
+      - MYSQL_USER=gitea
+      - MYSQL_PASSWORD=change_me
+      - MYSQL_DATABASE=gitea
+    networks:
+      - web
+    volumes:
+      - ./mysql:/var/lib/mysql
+
+  gitea-app:
+    image: gitea/gitea:1
+    container_name: gitea-app
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      #- /var/docker/gitea/data:/data
+      - ./gitea/data:/data
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - DB_TYPE=mysql
+      - DB_HOST=db:3306
+      - DB_NAME=gitea
+      - DB_USER=gitea
+      - DB_PASSWD=NslwGTwMVHKs9dXsyw
+    labels:
+      - "traefik.enable=true"
+     # - "traefik.http.middlewares.git-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.git-http.entrypoints=web"
+      - "traefik.http.routers.git-http.rule=Host(`${GITEA_URL}`)"
+      - "traefik.http.routers.git-http.middlewares=git-https@docker"
+      - "traefik.http.routers.git.entrypoints=websecure"
+      - "traefik.http.routers.git.rule=Host(`${GITEA_URL}`)"
+      - "traefik.http.routers.git.tls=true"
+      - "traefik.http.routers.git.tls.certresolver=lets-encrypt"
+      #- "traefik.http.routers.git.middlewares=secHeaders@file"
+      - "traefik.http.services.git.loadbalancer.server.port=3000"
+    depends_on:
+      - db
+    networks:
+      - web
+      - default
+
+networks:
+  web:
+    external:
+      name: web
+  default:
+    driver: bridge
