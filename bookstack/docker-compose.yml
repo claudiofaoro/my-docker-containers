@@ -1,0 +1,51 @@
+version: "3"
+
+services:
+  db:
+    image: mariadb:10.7
+    container_name: bookstack-mysql
+    restart: unless-stopped
+    volumes:
+      - ./bookstack-mysql/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_LOG_CONSOLE=true
+    networks:
+      - bookstack-net
+
+  bookstack:
+    image: solidnerd/bookstack
+    container_name: bookstack
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./uploads:/var/www/bookstack/public/uploads
+      - ./storage:/var/www/bookstack/public/storage
+    environment:
+      - DB_HOST=bookstack-mysql:3306
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - APP_URL=https://${TRAEFIK_BOOKSTACK}
+    networks:
+      - proxy
+      - bookstack-net
+    depends_on:
+      - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.bookstack.rule=Host(`${TRAEFIK_BOOKSTACK}`)"
+      - "traefik.http.routers.bookstack.entrypoints=https"
+      - "traefik.http.routers.bookstack.tls=true"
+      - "traefik.http.routers.bookstack.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.bookstack.loadbalancer.server.port=8080"
+
+networks:
+  bookstack-net:
+  proxy:
+    external: true
