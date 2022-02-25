@@ -1,0 +1,28 @@
+entryPoints:
+  http:
+    address: ":80"
+
+  https:
+    address: ":443"
+
+api:
+  dashboard: true
+
+providers:
+  docker:
+    endpoint: "tcp://socket-proxy:2375"
+    exposedByDefault: false
+
+  file:
+    directory: /rules
+    watch: true
+
+certificatesResolvers:
+  mytlschallenge:
+    acme:
+      email: mail@example.com
+      storage: ./letsencrypt/acme.json
+      tlsChallenge: {}
+
+log:
+  level: INFO

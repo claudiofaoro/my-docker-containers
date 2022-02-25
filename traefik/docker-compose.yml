@@ -1,21 +1,57 @@
-version: '3.7'
+version: "3"
+
+# based on https://github.com/BaptisteBdn/docker-selfhosted-apps, thanks baptistebdn!
 
 services:
   traefik:
-    image: traefik:2.3
-    container_name: traefik
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - $PWD/traefik.toml:/traefik.toml
-      - $PWD/traefik_dynamic.toml:/traefik_dynamic.toml
-      - $PWD/acme.json:/acme.json
-    networks:
-      - web
+    image: "traefik:v2.6"
+    container_name: "traefik"
+    restart: unless-stopped
+    depends_on:
+      socket-proxy
     ports:
       - "80:80"
       - "443:443"
-    restart: always
+    volumes:
+      - "./traefik.yml:/traefik.yml:ro"
+      - "./rules:/rules:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+
+      # global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=http"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+
+      # middleware redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+      # redirect www to root
+      - "traefik.http.routers.root.rule=host(`${DOMAIN}.${TLD}`)"
+      - "traefik.http.routers.root.entrypoints=https"
+      - "traefik.http.routers.root.middlewares=redirect-www-to-root"
+      - "traefik.http.routers.root.tls=true"
+
+      # middleware redirect www to root
+      - "traefik.http.middlewares.redirect-www-to-root.redirectregex.regex=^https://www.${DOMAIN}\\.${TLD}/{.*}"
+      - "traefik.http.middlewares.redirect-www-to-root.redirectregex.replacement=https://${DOMAIN}.${TLD}/$${1}"
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: traefik-socket-proxy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      CONTAINERS: 1
+    networks:
+      - proxy
 
 networks:
-  web:
+  proxy:
     external: true
